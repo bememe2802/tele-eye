@@ -1,0 +1,43 @@
+generator client {
+    provider = "prisma-client-js"
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model MedicalRecord {
+    record_id    Int      @id @default(autoincrement())
+    patient_id   Int
+    doctor_id    Int
+    appointment_id Int?
+    diagnosis    String?
+    prescription String?
+    notes        String?
+    created_at   DateTime @default(now())
+    updated_at   DateTime @updatedAt
+}
+
+model Prescription {
+    prescription_id Int      @id @default(autoincrement())
+    record_id       Int
+    medication_name String
+    dosage          String
+    frequency       String
+    duration        String
+    notes           String?
+    created_at      DateTime @default(now())
+}
+
+model TestResult {
+    test_id      Int      @id @default(autoincrement())
+    patient_id   Int
+    doctor_id    Int
+    test_type    String
+    test_date    DateTime
+    result_data  Json?
+    file_url     String?
+    notes        String?
+    created_at   DateTime @default(now())
+}
