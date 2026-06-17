@@ -1,0 +1,379 @@
+// prisma/schema.prisma
+
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+// ======================= ENUMS =======================
+enum UserRole {
+  PATIENT
+  DOCTOR
+  ADMIN
+  STAFF
+}
+
+enum Gender {
+  MALE
+  FEMALE
+  OTHER
+}
+
+enum SlotStatus {
+  AVAILABLE
+  BOOKED
+  LOCKED
+  CANCELLED
+}
+
+enum AppointmentStatus {
+  PENDING_PAYMENT
+  CONFIRMED
+  COMPLETED
+  CANCELLED
+  REFUNDED
+  IN_PROGRESS
+}
+
+enum PaymentType {
+  PAYMENT
+  REFUND
+  WITHDRAW
+  TOP_UP
+}
+
+enum TransactionStatus {
+  PENDING
+  SUCCESS
+  FAILED
+}
+
+enum FileType {
+  EYE_IMAGE
+  OLD_PRESCRIPTION
+  LAB_REPORT
+  OTHER
+}
+
+// ======================= 1. IDENTITY =======================
+
+model User {
+  user_id           Int       @id @default(autoincrement())
+  email             String    @unique
+  password_hash     String
+  role              UserRole
+  is_active         Boolean   @default(true)
+  is_email_verified Boolean   @default(false)
+  created_at        DateTime  @default(now())
+  updated_at        DateTime  @updatedAt
+
+  // Relations
+  patient      Patient?
+  doctor       Doctor?
+  sessions     UserSession[]
+  transactions Transaction[]
+  files        MedicalFile[] // Files uploaded by this user
+  chat_sent    ChatMessage[]
+}
+
+model UserSession {
+  session_id    String   @id @default(uuid())
+  user_id       Int
+  refresh_token String?
+  user_agent    String?
+  ip_address    String?
+  is_revoked    Boolean  @default(false)
+  expires_at    DateTime?
+  created_at    DateTime @default(now())
+
+  user User @relation(fields: [user_id], references: [user_id])
+}
+
+model VerificationToken {
+  id         Int      @id @default(autoincrement())
+  email      String
+  token      String   @unique // Lưu mã OTP hoặc chuỗi Token ngẫu nhiên
+  expires_at DateTime
+  created_at DateTime @default(now())
+
+  @@unique([email, token]) // Một email không được trùng mã trong cùng thời điểm
+}
+
+// ======================= 2. PROFILES =======================
+
+model Patient {
+  patient_id   Int      @id @default(autoincrement())
+  user_id      Int      @unique
+  full_name    String
+  phone_number String?
+  avatar_url   String?
+  date_of_birth DateTime? @db.Date
+  gender       Gender?
+  address      String?
+  created_at   DateTime @default(now())
+
+  user         User          @relation(fields: [user_id], references: [user_id])
+  appointments Appointment[]
+  reviews      AppointmentReview[]
+}
+
+model Doctor {
+  doctor_id        Int      @id @default(autoincrement())
+  user_id          Int      @unique
+  full_name        String
+  title            String?  // ThS.BS
+  license_number   String?  @unique
+  phone_number     String?
+  bio              String?
+  experience_years Int?
+  avatar_url       String?
+  is_verified      Boolean  @default(false)
+  consultation_fee Decimal  @db.Decimal(10, 2)
+  created_at       DateTime @default(now())
+
+  user            User                   @relation(fields: [user_id], references: [user_id])
+  specializations DoctorSpecialization[]
+  availabilities  DoctorAvailability[]
+  calendar_slots  DoctorCalendarSlots[]
+  appointments    Appointment[]
+}
+
+model Specialization {
+  spec_id     Int     @id @default(autoincrement())
+  name        String  @unique
+  description String?
+  image_url   String?
+  is_active   Boolean @default(true)
+
+  doctors DoctorSpecialization[]
+}
+
+model DoctorSpecialization {
+  doctor_id Int
+  spec_id   Int
+
+  doctor Doctor         @relation(fields: [doctor_id], references: [doctor_id])
+  spec   Specialization @relation(fields: [spec_id], references: [spec_id])
+
+  @@id([doctor_id, spec_id])
+}
+
+// ======================= 3. BOOKING =======================
+
+model SystemTimeSlot {
+  slot_template_id Int     @id @default(autoincrement())
+  start_time       DateTime @db.Time // Prisma dùng DateTime cho Time, chỉ lấy giờ
+  end_time         DateTime @db.Time
+  shift_name       String? // Sáng 1, Chiều 2
+  is_active        Boolean @default(true)
+
+  availabilities DoctorAvailability[]
+}
+
+model DoctorAvailability {
+  availability_id  Int       @id @default(autoincrement())
+  doctor_id        Int
+  slot_template_id Int
+  day_of_week      Int       // 1=Mon, 7=Sun
+  valid_from       DateTime  @db.Date
+  valid_to         DateTime? @db.Date
+  is_enabled       Boolean   @default(true)
+
+  doctor   Doctor         @relation(fields: [doctor_id], references: [doctor_id])
+  template SystemTimeSlot @relation(fields: [slot_template_id], references: [slot_template_id])
+
+  @@unique([doctor_id, day_of_week, slot_template_id, valid_from])
+}
+
+model DoctorCalendarSlots {
+  slot_id           Int           @id @default(autoincrement())
+  doctor_id         Int
+  date_slot         DateTime      @db.Date
+  start_time        DateTime      @db.Time
+  end_time          DateTime      @db.Time
+  status            SlotStatus    @default(AVAILABLE)
+  price             Decimal       @db.Decimal(10, 2)
+  is_locked         Boolean       @default(false)
+  locked_by_user_id Int? 
+  locked_expires_at DateTime?
+
+  doctor            Doctor        @relation(fields: [doctor_id], references: [doctor_id])
+  
+  // SỬA TẠI ĐÂY: Chuyển từ Appointment? sang Appointment[]
+  // Một slot có thể liên kết với nhiều bản ghi Appointment (ví dụ: các bản ghi bị CANCELLED)
+  appointments      Appointment[] 
+
+  @@unique([doctor_id, date_slot, start_time])
+}
+
+model Appointment {
+  appointment_id Int               @id @default(autoincrement())
+  slot_id        Int               // Không để @unique ở đây để cho phép lưu lịch sử hủy
+  patient_id     Int
+  doctor_id      Int
+  status         AppointmentStatus
+  meeting_link   String?
+  cancel_reason  String?
+  created_at     DateTime          @default(now())
+  actual_start_at DateTime?
+  actual_end_at   DateTime?
+
+  // Quan hệ n-1: Nhiều Appointment có thể trỏ về cùng 1 Slot (nhưng chỉ 1 cái được CONFIRMED)
+  slot           DoctorCalendarSlots @relation(fields: [slot_id], references: [slot_id])
+  
+  patient        Patient             @relation(fields: [patient_id], references: [patient_id])
+  doctor         Doctor              @relation(fields: [doctor_id], references: [doctor_id])
+  
+  payments       AppointmentPayment[]
+  medical_record EyeMedicalRecord?
+  files          MedicalFile[]
+  messages       ChatMessage[]
+  review         AppointmentReview?
+}
+
+// ======================= 4. MEDICAL & PHARMACY =======================
+
+model EyeMedicalRecord {
+  record_id      Int      @id @default(autoincrement())
+  appointment_id Int      @unique
+  
+  // Subjective
+  chief_complaint          String?
+  history_of_present_illness String?
+
+  // Objective
+  diagnosis_od   String? // Mắt phải
+  diagnosis_os   String? // Mắt trái
+  icd_10_code    String?
+  
+  management_plan String?
+  doctor_notes    String?
+  created_at      DateTime @default(now())
+  updated_at      DateTime @updatedAt
+
+  appointment         Appointment          @relation(fields: [appointment_id], references: [appointment_id])
+  drug_prescription   DrugPrescription?
+  glasses_prescription GlassesPrescription?
+}
+
+model Drug {
+  drug_id           Int     @id @default(autoincrement())
+  name              String  @unique
+  active_ingredient String?
+  unit              String? // Viên, Lọ
+  usage_instruction String?
+  is_active         Boolean @default(true)
+
+  prescription_items PrescriptionItem[]
+}
+
+model DrugPrescription {
+  drug_rx_id Int      @id @default(autoincrement())
+  record_id  Int      @unique
+  created_at DateTime @default(now())
+
+  record EyeMedicalRecord @relation(fields: [record_id], references: [record_id])
+  items  PrescriptionItem[]
+}
+
+model PrescriptionItem {
+  item_id    Int    @id @default(autoincrement())
+  drug_rx_id Int
+  drug_id    Int
+  quantity   Int
+  dosage     String? // 2 giọt/lần
+  note       String?
+
+  prescription DrugPrescription @relation(fields: [drug_rx_id], references: [drug_rx_id])
+  drug         Drug             @relation(fields: [drug_id], references: [drug_id])
+}
+
+model GlassesPrescription {
+  prescription_id Int      @id @default(autoincrement())
+  record_id       Int      @unique
+  
+  // OD (Right Eye)
+  od_sphere       Decimal? @db.Decimal(4, 2)
+  od_cylinder     Decimal? @db.Decimal(4, 2)
+  od_axis         Int?
+  od_pd           Decimal? @db.Decimal(4, 1)
+
+  // OS (Left Eye)
+  os_sphere       Decimal? @db.Decimal(4, 2)
+  os_cylinder     Decimal? @db.Decimal(4, 2)
+  os_axis         Int?
+  os_pd           Decimal? @db.Decimal(4, 1)
+
+  notes           String?
+  created_at      DateTime @default(now())
+
+  record EyeMedicalRecord @relation(fields: [record_id], references: [record_id])
+}
+
+model MedicalFile {
+  file_id        Int      @id @default(autoincrement())
+  appointment_id Int?
+  uploader_id    Int
+  file_url       String
+  file_type      FileType
+  created_at     DateTime @default(now())
+
+  appointment Appointment? @relation(fields: [appointment_id], references: [appointment_id])
+  uploader    User         @relation(fields: [uploader_id], references: [user_id])
+}
+
+// ======================= 5. PAYMENT & CHAT =======================
+
+model Transaction {
+  transaction_id        Int               @id @default(autoincrement())
+  user_id               Int
+  amount                Decimal           @db.Decimal(12, 2)
+  type                  PaymentType
+  status                TransactionStatus
+  payment_method        String?           // "VNPAY", "MOMO", "BANK_TRANSFER"
+  external_transaction_id String?         @unique // Lưu vnp_TransactionNo ở đây
+  description           String?           // "Thanh toán lịch hẹn #..."
+  raw_response          Json?             // Lưu toàn bộ log từ VNPAY (nếu cần)
+  created_at            DateTime          @default(now())
+
+  user                  User              @relation(fields: [user_id], references: [user_id])
+  appointment_payments  AppointmentPayment[]
+}
+
+model AppointmentPayment {
+  id             Int      @id @default(autoincrement())
+  appointment_id Int
+  transaction_id Int
+  amount         Decimal  @db.Decimal(12, 2)
+  created_at     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id])
+  transaction Transaction @relation(fields: [transaction_id], references: [transaction_id])
+}
+
+model ChatMessage {
+  message_id     Int      @id @default(autoincrement())
+  appointment_id Int
+  sender_id      Int
+  content        String
+  created_at     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id])
+  sender      User        @relation(fields: [sender_id], references: [user_id])
+}
+
+model AppointmentReview {
+  review_id      Int      @id @default(autoincrement())
+  appointment_id Int      @unique
+  patient_id     Int
+  rating         Int
+  comment        String?
+  created_at     DateTime @default(now())
+
+  appointment Appointment @relation(fields: [appointment_id], references: [appointment_id])
+  patient     Patient     @relation(fields: [patient_id], references: [patient_id])
+}
