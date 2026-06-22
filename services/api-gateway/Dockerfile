@@ -2,8 +2,8 @@ FROM node:20-alpine AS builder
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci
+COPY package.json ./
+RUN npm install
 
 COPY tsconfig.json nest-cli.json ./
 COPY src/ ./src/
@@ -14,8 +14,8 @@ FROM node:20-alpine AS runner
 
 WORKDIR /app
 
-COPY package.json package-lock.json ./
-RUN npm ci --only=production
+COPY package.json ./
+RUN npm install --only=production
 
 COPY --from=builder /app/dist ./dist
 

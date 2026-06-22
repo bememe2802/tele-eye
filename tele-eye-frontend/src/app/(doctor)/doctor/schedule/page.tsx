@@ -10,6 +10,30 @@ const DAY_NAMES = ['Chủ nhật', 'Thứ 2', 'Thứ 3', 'Thứ 4', 'Thứ 5', '
 
 interface AvailDay { day_of_week: number; slots: { availability_id: number; shift_name: string; start_time: string }[]; }
 
+const DEFAULT_SYSTEM_SLOTS: SystemTimeSlot[] = Array.from({ length: 18 }, (_, index) => {
+  const startMinutes = 8 * 60 + index * 30;
+  const endMinutes = startMinutes + 30;
+  const format = (value: number) => String(value).padStart(2, '0');
+  const toTime = (minutes: number) => `${format(Math.floor(minutes / 60))}:${format(minutes % 60)}`;
+  const start = toTime(startMinutes);
+  const end = toTime(endMinutes);
+
+  return {
+    slot_template_id: index + 1,
+    shift_name: `${start} - ${end}`,
+    start_time: start,
+    end_time: end,
+    is_active: true,
+  };
+});
+
+const normalizeSlots = (data: unknown): SystemTimeSlot[] => {
+  if (Array.isArray(data)) return data as SystemTimeSlot[];
+  const maybeWrapped = data as { value?: unknown };
+  if (Array.isArray(maybeWrapped?.value)) return maybeWrapped.value as SystemTimeSlot[];
+  return DEFAULT_SYSTEM_SLOTS;
+};
+
 export default function DoctorSchedulePage() {
   const [systemSlots, setSystemSlots] = useState<SystemTimeSlot[]>([]);
   const [myAvail, setMyAvail] = useState<AvailDay[]>([]);
@@ -19,11 +43,21 @@ export default function DoctorSchedulePage() {
   const [saving, setSaving] = useState(false);
 
   const load = async () => {
+    setLoading(true);
     try {
-      const [sRes, mRes] = await Promise.all([scheduleApi.getSystemSlots(), scheduleApi.getMyAvailability()]);
-      setSystemSlots(sRes.data);
+      const sRes = await scheduleApi.getSystemSlots();
+      setSystemSlots(normalizeSlots(sRes.data));
+    } catch {
+      setSystemSlots(DEFAULT_SYSTEM_SLOTS);
+    }
+
+    try {
+      const mRes = await scheduleApi.getMyAvailability();
       setMyAvail(mRes.data);
-    } catch { }
+    } catch {
+      setMyAvail([]);
+    }
+
     setLoading(false);
   };
   useEffect(() => { load(); }, []);
@@ -67,6 +101,9 @@ export default function DoctorSchedulePage() {
           <h2 className="section-title flex items-center gap-2">
             <Plus size={18} className="text-sky-500" /> Đăng ký lịch mới
           </h2>
+          <p className="text-sm text-slate-500">
+            Lịch được áp dụng cho các ngày từ hôm nay đến hết tuần sau.
+          </p>
 
           <div>
             <label className="label">Chọn ngày trong tuần</label>

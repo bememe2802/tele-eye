@@ -1,5 +1,6 @@
 generator client {
-    provider = "prisma-client-js"
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
@@ -8,26 +9,28 @@ datasource db {
 }
 
 model MedicalRecord {
-    record_id    Int      @id @default(autoincrement())
-    patient_id   Int
-    doctor_id    Int
+    record_id      Int           @id @default(autoincrement())
+    patient_id     Int
+    doctor_id      Int
     appointment_id Int?
-    diagnosis    String?
-    prescription String?
-    notes        String?
-    created_at   DateTime @default(now())
-    updated_at   DateTime @updatedAt
+    diagnosis      String?
+    prescription   String?
+    notes          String?
+    created_at     DateTime      @default(now())
+    updated_at     DateTime      @updatedAt
+    prescriptions  Prescription[]
 }
 
 model Prescription {
-    prescription_id Int      @id @default(autoincrement())
+    prescription_id Int           @id @default(autoincrement())
     record_id       Int
     medication_name String
     dosage          String
     frequency       String
     duration        String
     notes           String?
-    created_at      DateTime @default(now())
+    created_at      DateTime      @default(now())
+    medical_record  MedicalRecord @relation(fields: [record_id], references: [record_id])
 }
 
 model TestResult {

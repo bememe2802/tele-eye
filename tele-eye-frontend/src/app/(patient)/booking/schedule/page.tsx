@@ -18,8 +18,11 @@ export default function BookingSchedulePage() {
   const [locking, setLocking] = useState(false);
   const router = useRouter();
 
-  // Build 14-day range from today
-  const days = [...Array(14)].map((_, i) => addDays(startOfToday(), i));
+  // Build range from today through the end of next week.
+  const today = startOfToday();
+  const endOfNextWeek = addDays(today, ((7 - today.getDay()) % 7) + 7);
+  const dayCount = Math.round((endOfNextWeek.getTime() - today.getTime()) / (24 * 60 * 60 * 1000)) + 1;
+  const days = [...Array(dayCount)].map((_, i) => addDays(today, i));
 
   // FIX: Tính offset để ngày đầu tiên rơi đúng cột trong tuần
   // date-fns getDay(): 0=CN, 1=T2, ..., 6=T7

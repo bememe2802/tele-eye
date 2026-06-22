@@ -1,20 +1,33 @@
-import { IsInt, IsDateString, IsString, IsOptional, IsIn } from 'class-validator';
+import { IsInt, IsDateString, IsString, IsOptional } from 'class-validator';
 
 export class CreateAppointmentDto {
+    @IsOptional()
     @IsInt()
-    patient_id: number;
+    slot_id?: number;
 
+    @IsOptional()
+    @IsString()
+    description?: string;
+
+    @IsOptional()
     @IsInt()
-    doctor_id: number;
+    patient_id?: number;
 
+    @IsOptional()
+    @IsInt()
+    doctor_id?: number;
+
+    @IsOptional()
     @IsDateString()
-    schedule_date: string;
+    schedule_date?: string;
 
+    @IsOptional()
     @IsString()
-    start_time: string;
+    start_time?: string;
 
+    @IsOptional()
     @IsString()
-    end_time: string;
+    end_time?: string;
 
     @IsOptional()
     @IsString()

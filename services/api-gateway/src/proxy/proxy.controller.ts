@@ -7,6 +7,7 @@ import {
     HttpException,
 } from '@nestjs/common';
 import { HttpService } from '@nestjs/axios';
+import { AxiosResponse } from 'axios';
 import { Request, Response } from 'express';
 import { firstValueFrom } from 'rxjs';
 import { ConfigService } from '@nestjs/config';
@@ -29,32 +30,37 @@ export class ProxyController {
         };
     }
 
-    @All('auth/*')
+    @All('auth/*path')
     async proxyAuth(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('auth', req, res);
     }
 
-    @All('users/*')
+    @All('users/*path')
     async proxyUsers(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('users', req, res);
     }
 
-    @All('booking/*')
+    @All('profile/*path')
+    async proxyProfile(@Req() req: Request, @Res() res: Response) {
+        return this.proxyToService('users', req, res, 'profile');
+    }
+
+    @All('booking/*path')
     async proxyBooking(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('booking', req, res);
     }
 
-    @All('medical/*')
+    @All('medical/*path')
     async proxyMedical(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('medical', req, res);
     }
 
-    @All('payment/*')
+    @All('payment/*path')
     async proxyPayment(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('payment', req, res);
     }
 
-    @All('notifications/*')
+    @All('notifications/*path')
     async proxyNotifications(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('notifications', req, res);
     }
@@ -63,15 +69,17 @@ export class ProxyController {
         serviceName: string,
         req: Request,
         res: Response,
+        routePrefix?: string,
     ) {
         const baseUrl = this.serviceUrls[serviceName];
         if (!baseUrl) {
             throw new HttpException('Service not found', HttpStatus.NOT_FOUND);
         }
 
-        // Strip the service prefix from the path
-        // e.g., /auth/login -> /login
-        const path = req.originalUrl.replace(`/api/${serviceName}`, '');
+        // Strip the route prefix from the path
+        // e.g., /api/auth/login -> /login, /api/profile/doctors -> /doctors
+        const prefix = routePrefix || serviceName;
+        const path = req.originalUrl.replace(`/api/${prefix}`, '');
         const targetUrl = `${baseUrl}${path}`;
 
         try {
@@ -85,7 +93,7 @@ export class ProxyController {
 
             const method = req.method.toLowerCase() as 'get' | 'post' | 'put' | 'patch' | 'delete';
 
-            const response = await firstValueFrom(
+            const response: AxiosResponse = await firstValueFrom(
                 this.httpService.request({
                     method,
                     url: targetUrl,

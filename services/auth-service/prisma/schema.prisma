@@ -1,5 +1,6 @@
 generator client {
-    provider = "prisma-client-js"
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
@@ -18,6 +19,7 @@ model User {
     user_id           Int      @id @default(autoincrement())
     email             String   @unique
     password_hash     String
+    full_name         String?
     role              UserRole
     is_active         Boolean  @default(true)
     is_email_verified Boolean  @default(false)

@@ -25,8 +25,8 @@ export default function RegisterPage() {
     setLoading(true);
     try {
       await authApi.register({ email: data.email, password: data.password, fullName: data.fullName });
-      toast.success('Đăng ký thành công! Vui lòng kiểm tra email.');
-      router.push(`/verify-email?email=${encodeURIComponent(data.email)}`);
+      toast.success('Đăng ký thành công!');
+      router.push('/login');
     } catch (err: unknown) {
       const msg = (err as { response?: { data?: { message?: string } } })?.response?.data?.message || 'Đăng ký thất bại';
       toast.error(msg);

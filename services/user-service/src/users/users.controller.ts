@@ -1,7 +1,8 @@
-import { Controller, Get, Put, Param, Body, UseGuards, Req } from '@nestjs/common';
+import { Controller, Get, Put, Post, Param, Body, UseGuards, Req } from '@nestjs/common';
 import { AuthGuard } from '@nestjs/passport';
 import { UsersService } from './users.service';
 import { UpdateProfileDto } from './dto/update-profile.dto';
+import { CreateDoctorDto } from './dto/create-doctor.dto';
 
 @Controller()
 export class UsersController {
@@ -17,6 +18,12 @@ export class UsersController {
     @UseGuards(AuthGuard('jwt'))
     async updateProfile(@Req() req: any, @Body() dto: UpdateProfileDto) {
         return this.usersService.updateProfile(req.user.id, dto);
+    }
+
+    @Post('doctors')
+    @UseGuards(AuthGuard('jwt'))
+    async createDoctor(@Body() dto: CreateDoctorDto) {
+        return this.usersService.createDoctor(dto);
     }
 
     @Get('doctors')

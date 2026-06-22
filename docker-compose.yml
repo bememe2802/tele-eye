@@ -1,5 +1,3 @@
-version: '3.8'
-
 services:
   # ==================== INFRASTRUCTURE ====================
   postgres:
@@ -91,6 +89,9 @@ services:
       PORT: 8083
       DATABASE_URL: postgresql://postgres:postgres@postgres:5432/tele_eye
       RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      SEPAY_API_KEY: ${SEPAY_API_KEY:-}
+      SEPAY_WEBHOOK_TOKEN: ${SEPAY_WEBHOOK_TOKEN:-}
+      SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
     depends_on:
       postgres:
         condition: service_healthy
@@ -193,7 +194,7 @@ services:
   # ==================== FRONTEND ====================
   frontend:
     build:
-      context: ./frontend
+      context: ./tele-eye-frontend
       dockerfile: Dockerfile
     container_name: tele-eye-frontend
     restart: unless-stopped
@@ -201,6 +202,9 @@ services:
       - "3000:3000"
     environment:
       NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      NEXT_PUBLIC_SEPAY_BANK_ID: ${NEXT_PUBLIC_SEPAY_BANK_ID:-TPB}
+      NEXT_PUBLIC_SEPAY_ACCOUNT_NO: ${NEXT_PUBLIC_SEPAY_ACCOUNT_NO:-28220051308}
+      NEXT_PUBLIC_SEPAY_ACCOUNT_NAME: ${NEXT_PUBLIC_SEPAY_ACCOUNT_NAME:-NGUYEN HUYNH DUC}
     depends_on:
       - api-gateway
     networks:

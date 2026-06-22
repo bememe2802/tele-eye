@@ -1,5 +1,6 @@
 generator client {
-    provider = "prisma-client-js"
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl"]
 }
 
 datasource db {
@@ -21,6 +22,19 @@ model Appointment {
     updated_at     DateTime @updatedAt
 }
 
+model Payment {
+    payment_id     Int      @id @default(autoincrement())
+    appointment_id Int
+    patient_id     Int
+    amount         Decimal  @db.Decimal(10, 2)
+    status         String   @default("PENDING")
+    payment_method String?
+    transaction_id String?
+    paid_at        DateTime?
+    created_at     DateTime @default(now())
+    updated_at     DateTime @updatedAt
+}
+
 model DoctorSchedule {
     schedule_id    Int      @id @default(autoincrement())
     doctor_id      Int
@@ -30,4 +44,30 @@ model DoctorSchedule {
     is_available   Boolean  @default(true)
     created_at     DateTime @default(now())
     updated_at     DateTime @updatedAt
+}
+
+model DoctorProfile {
+    doctor_id        Int      @id @default(autoincrement())
+    user_id          Int      @unique
+    specialization   String?
+    license_number   String?
+    years_of_exp     Int      @default(0)
+    consultation_fee Float    @default(0)
+    bio              String?
+    is_available     Boolean  @default(true)
+    created_at       DateTime @default(now())
+    updated_at       DateTime @updatedAt
+}
+
+model UserProfile {
+    user_id           Int      @id
+    full_name         String?
+    phone             String?
+    avatar_url        String?
+    date_of_birth     DateTime?
+    gender            String?
+    address           String?
+    emergency_contact String?
+    created_at        DateTime @default(now())
+    updated_at        DateTime @updatedAt
 }

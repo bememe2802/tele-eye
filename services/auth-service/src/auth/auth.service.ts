@@ -2,10 +2,14 @@ import {
     Injectable,
     UnauthorizedException,
     ConflictException,
+    Inject,
+    BadRequestException,
 } from '@nestjs/common';
 import { JwtService } from '@nestjs/jwt';
 import { ConfigService } from '@nestjs/config';
+import { ClientProxy } from '@nestjs/microservices';
 import * as bcrypt from 'bcrypt';
+import * as crypto from 'crypto';
 import { PrismaService } from '../prisma/prisma.service';
 import { RegisterDto } from './dto/register.dto';
 import { LoginDto } from './dto/login.dto';
@@ -16,6 +20,7 @@ export class AuthService {
         private readonly prisma: PrismaService,
         private readonly jwtService: JwtService,
         private readonly configService: ConfigService,
+        @Inject('RABBITMQ_SERVICE') private readonly rabbitClient: ClientProxy,
     ) { }
 
     async register(dto: RegisterDto) {
@@ -33,9 +38,34 @@ export class AuthService {
             data: {
                 email: dto.email,
                 password_hash: passwordHash,
+                full_name: dto.fullName,
                 role: dto.role || 'PATIENT',
             },
         });
+
+        // TODO: Uncomment when email verification is needed
+        // // Generate email verification token
+        // const verificationToken = crypto.randomBytes(32).toString('hex');
+        // await this.prisma.verificationToken.create({
+        //     data: {
+        //         email: user.email,
+        //         token: verificationToken,
+        //         expires_at: new Date(Date.now() + 24 * 60 * 60 * 1000), // 24 hours
+        //     },
+        // });
+        //
+        // // Publish email verification event to RabbitMQ
+        // try {
+        //     this.rabbitClient.emit('email.send', {
+        //         type: 'VERIFY_EMAIL',
+        //         email: user.email,
+        //         token: verificationToken,
+        //         fullName: user.full_name,
+        //     });
+        // } catch (err: any) {
+        //     // Don't fail registration if RabbitMQ is unavailable
+        //     console.warn('⚠️ Failed to publish email event to RabbitMQ:', err.message);
+        // }
 
         const tokens = await this.generateTokens(user.user_id, user.email, user.role);
 
@@ -43,10 +73,36 @@ export class AuthService {
             user: {
                 id: user.user_id,
                 email: user.email,
+                fullName: user.full_name,
                 role: user.role,
             },
             ...tokens,
         };
+    }
+
+    async verifyEmail(token: string) {
+        const verification = await this.prisma.verificationToken.findUnique({
+            where: { token },
+        });
+
+        if (!verification) {
+            throw new BadRequestException('Invalid verification token');
+        }
+
+        if (verification.expires_at < new Date()) {
+            throw new BadRequestException('Verification token has expired');
+        }
+
+        await this.prisma.user.update({
+            where: { email: verification.email },
+            data: { is_email_verified: true },
+        });
+
+        await this.prisma.verificationToken.delete({
+            where: { id: verification.id },
+        });
+
+        return { message: 'Email verified successfully' };
     }
 
     async login(dto: LoginDto) {

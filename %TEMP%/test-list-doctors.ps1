@@ -1,0 +1,1 @@
+Invoke-RestMethod -Uri "http://localhost:8082/doctors" -Method Get | ConvertTo-Json -Depth 10
