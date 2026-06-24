@@ -1,0 +1,223 @@
+{
+    "version": "5.22.0",
+    "steps": [
+        {
+            "tag": "CreateTable",
+            "table": "UserProfile",
+            "columns": [
+                {
+                    "name": "user_id",
+                    "type": "Integer",
+                    "isRequired": true,
+                    "isList": false,
+                    "isId": true
+                },
+                {
+                    "name": "full_name",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "phone",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "avatar_url",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "date_of_birth",
+                    "type": "DateTime",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "gender",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "address",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "emergency_contact",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "DateTime",
+                    "isRequired": true,
+                    "isList": false,
+                    "default": {
+                        "name": "now"
+                    }
+                },
+                {
+                    "name": "updated_at",
+                    "type": "DateTime",
+                    "isRequired": true,
+                    "isList": false
+                }
+            ],
+            "primaryKey": {
+                "columns": [
+                    "user_id"
+                ]
+            }
+        },
+        {
+            "tag": "CreateTable",
+            "table": "DoctorProfile",
+            "columns": [
+                {
+                    "name": "doctor_id",
+                    "type": "Int",
+                    "isRequired": true,
+                    "isList": false,
+                    "isId": true,
+                    "default": {
+                        "name": "autoincrement"
+                    }
+                },
+                {
+                    "name": "user_id",
+                    "type": "Int",
+                    "isRequired": true,
+                    "isList": false,
+                    "isUnique": true
+                },
+                {
+                    "name": "specialization",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "license_number",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "years_of_exp",
+                    "type": "Int",
+                    "isRequired": true,
+                    "isList": false,
+                    "default": 0
+                },
+                {
+                    "name": "consultation_fee",
+                    "type": "Float",
+                    "isRequired": true,
+                    "isList": false,
+                    "default": 0
+                },
+                {
+                    "name": "bio",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "is_available",
+                    "type": "Boolean",
+                    "isRequired": true,
+                    "isList": false,
+                    "default": true
+                },
+                {
+                    "name": "created_at",
+                    "type": "DateTime",
+                    "isRequired": true,
+                    "isList": false,
+                    "default": {
+                        "name": "now"
+                    }
+                },
+                {
+                    "name": "updated_at",
+                    "type": "DateTime",
+                    "isRequired": true,
+                    "isList": false
+                }
+            ],
+            "primaryKey": {
+                "columns": [
+                    "doctor_id"
+                ]
+            }
+        },
+        {
+            "tag": "CreateTable",
+            "table": "PatientProfile",
+            "columns": [
+                {
+                    "name": "patient_id",
+                    "type": "Int",
+                    "isRequired": true,
+                    "isList": false,
+                    "isId": true,
+                    "default": {
+                        "name": "autoincrement"
+                    }
+                },
+                {
+                    "name": "user_id",
+                    "type": "Int",
+                    "isRequired": true,
+                    "isList": false,
+                    "isUnique": true
+                },
+                {
+                    "name": "blood_type",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "allergies",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "medical_notes",
+                    "type": "String",
+                    "isRequired": false,
+                    "isList": false
+                },
+                {
+                    "name": "created_at",
+                    "type": "DateTime",
+                    "isRequired": true,
+                    "isList": false,
+                    "default": {
+                        "name": "now"
+                    }
+                },
+                {
+                    "name": "updated_at",
+                    "type": "DateTime",
+                    "isRequired": true,
+                    "isList": false
+                }
+            ],
+            "primaryKey": {
+                "columns": [
+                    "patient_id"
+                ]
+            }
+        }
+    ]
+}

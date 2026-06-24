@@ -1,0 +1,30 @@
+generator client {
+    provider      = "prisma-client-js"
+    binaryTargets = ["native", "linux-musl"]
+}
+
+datasource db {
+    provider = "postgresql"
+    url      = env("DATABASE_URL")
+}
+
+model Payment {
+    payment_id     Int      @id @default(autoincrement())
+    appointment_id Int
+    patient_id     Int
+    amount         Decimal  @db.Decimal(10, 2)
+    status         String   @default("PENDING")
+    payment_method String?
+    transaction_id String?
+    paid_at        DateTime?
+    created_at     DateTime @default(now())
+    updated_at     DateTime @updatedAt
+}
+
+model Invoice {
+    invoice_id   Int      @id @default(autoincrement())
+    payment_id   Int
+    invoice_url  String?
+    issued_at    DateTime @default(now())
+    paid_at      DateTime?
+}

@@ -1,0 +1,159 @@
+<svg xmlns="http://www.w3.org/2000/svg" width="1600" height="1040" viewBox="0 0 1600 1040">
+  <defs>
+    <style>
+      .bg { fill: #f6f7fb; }
+      .service { fill: #ffffff; stroke: #cbd5e1; stroke-width: 2; }
+      .service-title { font: 700 22px "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+      .service-subtitle { font: 14px "Segoe UI", Arial, sans-serif; fill: #64748b; }
+      .table { fill: #ffffff; stroke: #334155; stroke-width: 1.5; filter: drop-shadow(0 6px 14px rgba(15, 23, 42, 0.12)); }
+      .table.user { stroke: #2563eb; }
+      .table.booking { stroke: #16a34a; }
+      .table-header-user { fill: #dbeafe; stroke: #2563eb; stroke-width: 1.5; }
+      .table-header-booking { fill: #dcfce7; stroke: #16a34a; stroke-width: 1.5; }
+      .table-name { font: 700 17px "Segoe UI", Arial, sans-serif; fill: #0f172a; }
+      .field { font: 13px "Consolas", "Courier New", monospace; fill: #111827; }
+      .pk { fill: #b45309; font-weight: 700; }
+      .uk { fill: #7c3aed; font-weight: 700; }
+      .nullable { fill: #64748b; }
+      .relation { stroke: #0f172a; stroke-width: 2.2; fill: none; marker-end: url(#arrow); }
+      .relation-soft { stroke: #64748b; stroke-width: 2; fill: none; stroke-dasharray: 8 6; marker-end: url(#arrowSoft); }
+      .relation-label { font: 12px "Segoe UI", Arial, sans-serif; fill: #334155; paint-order: stroke; stroke: #f6f7fb; stroke-width: 4px; }
+      .legend { fill: #ffffff; stroke: #cbd5e1; stroke-width: 1.5; }
+      .legend-text { font: 13px "Segoe UI", Arial, sans-serif; fill: #334155; }
+    </style>
+    <marker id="arrow" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#0f172a" />
+    </marker>
+    <marker id="arrowSoft" markerWidth="12" markerHeight="12" refX="10" refY="6" orient="auto">
+      <path d="M 0 0 L 12 6 L 0 12 z" fill="#64748b" />
+    </marker>
+  </defs>
+
+  <rect class="bg" x="0" y="0" width="1600" height="1040" />
+
+  <text x="70" y="56" class="service-title">Tele-Eye Database Diagram: User Service + Booking Service</text>
+  <text x="70" y="82" class="service-subtitle">Database-per-service: solid lines are inside a service DB, dashed lines are logical references across service boundaries.</text>
+
+  <rect class="service" x="50" y="120" width="700" height="840" rx="14" />
+  <text x="80" y="160" class="service-title">user-service</text>
+  <text x="80" y="184" class="service-subtitle">PostgreSQL container: tele-eye-user-db / database: user_db</text>
+
+  <rect class="service" x="850" y="120" width="700" height="840" rx="14" />
+  <text x="880" y="160" class="service-title">booking-service</text>
+  <text x="880" y="184" class="service-subtitle">PostgreSQL container: tele-eye-booking-db / database: booking_db</text>
+
+  <!-- UserProfile -->
+  <rect class="table user" x="90" y="230" width="300" height="292" rx="8" />
+  <rect class="table-header-user" x="90" y="230" width="300" height="42" rx="8" />
+  <text x="110" y="257" class="table-name">UserProfile</text>
+  <text x="110" y="294" class="field pk">PK  user_id              Int</text>
+  <text x="110" y="320" class="field nullable">    full_name            String?</text>
+  <text x="110" y="346" class="field nullable">    phone                String?</text>
+  <text x="110" y="372" class="field nullable">    avatar_url           String?</text>
+  <text x="110" y="398" class="field nullable">    date_of_birth        DateTime?</text>
+  <text x="110" y="424" class="field nullable">    gender               String?</text>
+  <text x="110" y="450" class="field nullable">    address              String?</text>
+  <text x="110" y="476" class="field nullable">    emergency_contact    String?</text>
+  <text x="110" y="502" class="field">    created_at           DateTime</text>
+
+  <!-- DoctorProfile -->
+  <rect class="table user" x="420" y="230" width="300" height="318" rx="8" />
+  <rect class="table-header-user" x="420" y="230" width="300" height="42" rx="8" />
+  <text x="440" y="257" class="table-name">DoctorProfile</text>
+  <text x="440" y="294" class="field pk">PK  doctor_id            Int</text>
+  <text x="440" y="320" class="field uk">UK  user_id              Int</text>
+  <text x="440" y="346" class="field nullable">    specialization       String?</text>
+  <text x="440" y="372" class="field nullable">    license_number       String?</text>
+  <text x="440" y="398" class="field">    years_of_exp         Int</text>
+  <text x="440" y="424" class="field">    consultation_fee     Float</text>
+  <text x="440" y="450" class="field nullable">    bio                  String?</text>
+  <text x="440" y="476" class="field">    is_available         Boolean</text>
+  <text x="440" y="502" class="field">    created_at           DateTime</text>
+  <text x="440" y="528" class="field">    updated_at           DateTime</text>
+
+  <!-- PatientProfile -->
+  <rect class="table user" x="90" y="610" width="300" height="242" rx="8" />
+  <rect class="table-header-user" x="90" y="610" width="300" height="42" rx="8" />
+  <text x="110" y="637" class="table-name">PatientProfile</text>
+  <text x="110" y="674" class="field pk">PK  patient_id           Int</text>
+  <text x="110" y="700" class="field uk">UK  user_id              Int</text>
+  <text x="110" y="726" class="field nullable">    blood_type           String?</text>
+  <text x="110" y="752" class="field nullable">    allergies            String?</text>
+  <text x="110" y="778" class="field nullable">    medical_notes        String?</text>
+  <text x="110" y="804" class="field">    created_at           DateTime</text>
+  <text x="110" y="830" class="field">    updated_at           DateTime</text>
+
+  <!-- Appointment -->
+  <rect class="table booking" x="890" y="230" width="300" height="318" rx="8" />
+  <rect class="table-header-booking" x="890" y="230" width="300" height="42" rx="8" />
+  <text x="910" y="257" class="table-name">Appointment</text>
+  <text x="910" y="294" class="field pk">PK  appointment_id       Int</text>
+  <text x="910" y="320" class="field">    patient_id           Int</text>
+  <text x="910" y="346" class="field">    doctor_id            Int</text>
+  <text x="910" y="372" class="field">    schedule_date        DateTime</text>
+  <text x="910" y="398" class="field">    start_time           String</text>
+  <text x="910" y="424" class="field">    end_time             String</text>
+  <text x="910" y="450" class="field">    status               String</text>
+  <text x="910" y="476" class="field nullable">    reason               String?</text>
+  <text x="910" y="502" class="field nullable">    notes                String?</text>
+  <text x="910" y="528" class="field">    created_at           DateTime</text>
+
+  <!-- DoctorSchedule -->
+  <rect class="table booking" x="1220" y="230" width="300" height="268" rx="8" />
+  <rect class="table-header-booking" x="1220" y="230" width="300" height="42" rx="8" />
+  <text x="1240" y="257" class="table-name">DoctorSchedule</text>
+  <text x="1240" y="294" class="field pk">PK  schedule_id          Int</text>
+  <text x="1240" y="320" class="field">    doctor_id            Int</text>
+  <text x="1240" y="346" class="field">    day_of_week          Int</text>
+  <text x="1240" y="372" class="field">    start_time           String</text>
+  <text x="1240" y="398" class="field">    end_time             String</text>
+  <text x="1240" y="424" class="field">    is_available         Boolean</text>
+  <text x="1240" y="450" class="field">    created_at           DateTime</text>
+  <text x="1240" y="476" class="field">    updated_at           DateTime</text>
+
+  <!-- Payment -->
+  <rect class="table booking" x="890" y="620" width="300" height="318" rx="8" />
+  <rect class="table-header-booking" x="890" y="620" width="300" height="42" rx="8" />
+  <text x="910" y="647" class="table-name">Payment</text>
+  <text x="910" y="684" class="field pk">PK  payment_id           Int</text>
+  <text x="910" y="710" class="field">    appointment_id       Int</text>
+  <text x="910" y="736" class="field">    patient_id           Int</text>
+  <text x="910" y="762" class="field">    amount               Decimal(10,2)</text>
+  <text x="910" y="788" class="field">    status               String</text>
+  <text x="910" y="814" class="field nullable">    payment_method       String?</text>
+  <text x="910" y="840" class="field nullable">    transaction_id       String?</text>
+  <text x="910" y="866" class="field nullable">    paid_at              DateTime?</text>
+  <text x="910" y="892" class="field">    created_at           DateTime</text>
+  <text x="910" y="918" class="field">    updated_at           DateTime</text>
+
+  <!-- Relationships inside user DB -->
+  <path class="relation" d="M 390 320 C 405 320, 405 320, 420 320" />
+  <text x="384" y="306" class="relation-label">user_id</text>
+
+  <path class="relation" d="M 240 522 C 240 565, 240 575, 240 610" />
+  <text x="252" y="572" class="relation-label">user_id</text>
+
+  <!-- Relationships inside booking DB -->
+  <path class="relation" d="M 1040 548 C 1040 580, 1040 590, 1040 620" />
+  <text x="1054" y="586" class="relation-label">appointment_id</text>
+
+  <!-- Cross-service logical relationships -->
+  <path class="relation-soft" d="M 720 294 C 800 294, 810 346, 890 346" />
+  <text x="760" y="286" class="relation-label">DoctorProfile.doctor_id -> Appointment.doctor_id</text>
+
+  <path class="relation-soft" d="M 720 320 C 830 320, 1080 320, 1220 320" />
+  <text x="828" y="334" class="relation-label">DoctorProfile.doctor_id -> DoctorSchedule.doctor_id</text>
+
+  <path class="relation-soft" d="M 390 294 C 555 294, 724 320, 890 320" />
+  <text x="520" y="262" class="relation-label">UserProfile.user_id -> Appointment.patient_id</text>
+
+  <path class="relation-soft" d="M 390 294 C 650 294, 660 736, 890 736" />
+  <text x="520" y="760" class="relation-label">UserProfile.user_id -> Payment.patient_id</text>
+
+  <!-- Legend -->
+  <rect class="legend" x="80" y="900" width="520" height="42" rx="8" />
+  <line x1="104" y1="922" x2="154" y2="922" class="relation" />
+  <text x="170" y="927" class="legend-text">Direct relation inside one service DB</text>
+  <line x1="380" y1="922" x2="430" y2="922" class="relation-soft" />
+  <text x="446" y="927" class="legend-text">Logical reference across services</text>
+</svg>

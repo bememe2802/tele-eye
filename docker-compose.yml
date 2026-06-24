@@ -1,0 +1,308 @@
+services:
+  # ==================== INFRASTRUCTURE ====================
+  identity-db:
+    image: postgres:16-alpine
+    container_name: tele-eye-identity-db
+    restart: unless-stopped
+    ports:
+      - "5432:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: identity_db
+    volumes:
+      - identity_db_data:/var/lib/postgresql/data
+    networks:
+      - tele-eye-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  user-db:
+    image: postgres:16-alpine
+    container_name: tele-eye-user-db
+    restart: unless-stopped
+    ports:
+      - "5433:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: user_db
+    volumes:
+      - user_db_data:/var/lib/postgresql/data
+    networks:
+      - tele-eye-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  booking-db:
+    image: postgres:16-alpine
+    container_name: tele-eye-booking-db
+    restart: unless-stopped
+    ports:
+      - "5434:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: booking_db
+    volumes:
+      - booking_db_data:/var/lib/postgresql/data
+    networks:
+      - tele-eye-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  medical-db:
+    image: postgres:16-alpine
+    container_name: tele-eye-medical-db
+    restart: unless-stopped
+    ports:
+      - "5435:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: medical_db
+    volumes:
+      - medical_db_data:/var/lib/postgresql/data
+    networks:
+      - tele-eye-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  payment-db:
+    image: postgres:16-alpine
+    container_name: tele-eye-payment-db
+    restart: unless-stopped
+    ports:
+      - "5436:5432"
+    environment:
+      POSTGRES_USER: postgres
+      POSTGRES_PASSWORD: postgres
+      POSTGRES_DB: payment_db
+    volumes:
+      - payment_db_data:/var/lib/postgresql/data
+    networks:
+      - tele-eye-network
+    healthcheck:
+      test: [ "CMD-SHELL", "pg_isready -U postgres" ]
+      interval: 10s
+      timeout: 5s
+      retries: 5
+
+  rabbitmq:
+    image: rabbitmq:3-management-alpine
+    container_name: tele-eye-rabbitmq
+    restart: unless-stopped
+    ports:
+      - "5672:5672"
+      - "15672:15672"
+    environment:
+      RABBITMQ_DEFAULT_USER: guest
+      RABBITMQ_DEFAULT_PASS: guest
+    networks:
+      - tele-eye-network
+
+  # ==================== MICROSERVICES ====================
+  auth-service:
+    build:
+      context: ./services/auth-service
+      dockerfile: Dockerfile
+    container_name: tele-eye-auth
+    restart: unless-stopped
+    ports:
+      - "8081:8081"
+    environment:
+      PORT: 8081
+      DATABASE_URL: postgresql://postgres:postgres@identity-db:5432/identity_db
+      JWT_SECRET: tele-eye-jwt-secret-key
+      JWT_EXPIRATION: 15m
+      JWT_REFRESH_EXPIRATION: 7d
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      identity-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - tele-eye-network
+
+  user-service:
+    build:
+      context: ./services/user-service
+      dockerfile: Dockerfile
+    container_name: tele-eye-user
+    restart: unless-stopped
+    ports:
+      - "8082:8082"
+    environment:
+      PORT: 8082
+      DATABASE_URL: postgresql://postgres:postgres@user-db:5432/user_db
+      AUTH_SERVICE_URL: http://auth-service:8081
+      JWT_SECRET: tele-eye-jwt-secret-key
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      user-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - tele-eye-network
+
+  booking-service:
+    build:
+      context: ./services/booking-service
+      dockerfile: Dockerfile
+    container_name: tele-eye-booking
+    restart: unless-stopped
+    ports:
+      - "8083:8083"
+    environment:
+      PORT: 8083
+      DATABASE_URL: postgresql://postgres:postgres@booking-db:5432/booking_db
+      USER_SERVICE_URL: http://user-service:8082
+      JWT_SECRET: tele-eye-jwt-secret-key
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      SEPAY_API_KEY: ${SEPAY_API_KEY:-}
+      SEPAY_WEBHOOK_TOKEN: ${SEPAY_WEBHOOK_TOKEN:-}
+      SEPAY_ACCOUNT_NUMBER: ${SEPAY_ACCOUNT_NUMBER:-}
+    depends_on:
+      booking-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - tele-eye-network
+
+  medical-service:
+    build:
+      context: ./services/medical-service
+      dockerfile: Dockerfile
+    container_name: tele-eye-medical
+    restart: unless-stopped
+    ports:
+      - "8084:8084"
+    environment:
+      PORT: 8084
+      DATABASE_URL: postgresql://postgres:postgres@medical-db:5432/medical_db
+      JWT_SECRET: tele-eye-jwt-secret-key
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      medical-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - tele-eye-network
+
+  payment-service:
+    build:
+      context: ./services/payment-service
+      dockerfile: Dockerfile
+    container_name: tele-eye-payment
+    restart: unless-stopped
+    ports:
+      - "8085:8085"
+    environment:
+      PORT: 8085
+      DATABASE_URL: postgresql://postgres:postgres@payment-db:5432/payment_db
+      JWT_SECRET: tele-eye-jwt-secret-key
+      VNPAY_TMN_CODE: your_tmn_code
+      VNPAY_HASH_SECRET: your_hash_secret
+      VNPAY_URL: https://sandbox.vnpayment.vn/paymentv2/vpcpay.html
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+    depends_on:
+      payment-db:
+        condition: service_healthy
+      rabbitmq:
+        condition: service_started
+    networks:
+      - tele-eye-network
+
+  notification-service:
+    build:
+      context: ./services/notification-service
+      dockerfile: Dockerfile
+    container_name: tele-eye-notification
+    restart: unless-stopped
+    ports:
+      - "8086:8086"
+    environment:
+      PORT: 8086
+      RABBITMQ_URL: amqp://guest:guest@rabbitmq:5672
+      MAIL_HOST: smtp.gmail.com
+      MAIL_PORT: 587
+      MAIL_USER: your_email@gmail.com
+      MAIL_PASS: your_app_password
+    depends_on:
+      rabbitmq:
+        condition: service_started
+    networks:
+      - tele-eye-network
+
+  api-gateway:
+    build:
+      context: ./services/api-gateway
+      dockerfile: Dockerfile
+    container_name: tele-eye-gateway
+    restart: unless-stopped
+    ports:
+      - "8080:8080"
+    environment:
+      PORT: 8080
+      AUTH_SERVICE_URL: http://auth-service:8081
+      USER_SERVICE_URL: http://user-service:8082
+      BOOKING_SERVICE_URL: http://booking-service:8083
+      MEDICAL_SERVICE_URL: http://medical-service:8084
+      PAYMENT_SERVICE_URL: http://payment-service:8085
+      NOTIFICATION_SERVICE_URL: http://notification-service:8086
+      JWT_SECRET: tele-eye-jwt-secret-key
+    depends_on:
+      - auth-service
+      - user-service
+      - booking-service
+      - medical-service
+      - payment-service
+      - notification-service
+    networks:
+      - tele-eye-network
+
+  # ==================== FRONTEND ====================
+  frontend:
+    build:
+      context: ./tele-eye-frontend
+      dockerfile: Dockerfile
+    container_name: tele-eye-frontend
+    restart: unless-stopped
+    ports:
+      - "3000:3000"
+    environment:
+      NEXT_PUBLIC_API_URL: http://localhost:8080/api
+      NEXT_PUBLIC_SEPAY_BANK_ID: ${NEXT_PUBLIC_SEPAY_BANK_ID:-TPB}
+      NEXT_PUBLIC_SEPAY_ACCOUNT_NO: ${NEXT_PUBLIC_SEPAY_ACCOUNT_NO:-28220051308}
+      NEXT_PUBLIC_SEPAY_ACCOUNT_NAME: ${NEXT_PUBLIC_SEPAY_ACCOUNT_NAME:-NGUYEN HUYNH DUC}
+    depends_on:
+      - api-gateway
+    networks:
+      - tele-eye-network
+
+volumes:
+  identity_db_data:
+  user_db_data:
+  booking_db_data:
+  medical_db_data:
+  payment_db_data:
+
+networks:
+  tele-eye-network:
+    driver: bridge
