@@ -88,8 +88,14 @@ export class BookingsController {
 
     @Patch('appointments/:id/complete')
     @UseGuards(AuthGuard('jwt'))
-    async completeAppointment(@Req() req: any, @Param('id') id: string) {
-        return this.bookingsService.completeAppointment(req.user.id, Number(id));
+    async completeAppointment(@Req() req: any, @Param('id') id: string, @Body() dto: any) {
+        return this.bookingsService.completeAppointment(req.user.id, Number(id), dto);
+    }
+
+    @Get('appointments/:id/medical-record')
+    @UseGuards(AuthGuard('jwt'))
+    async getAppointmentMedicalRecord(@Req() req: any, @Param('id') id: string) {
+        return this.bookingsService.getAppointmentMedicalRecord(req.user.id, Number(id));
     }
 
     @Get('appointments/:id/payment-status')

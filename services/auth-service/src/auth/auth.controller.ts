@@ -34,4 +34,9 @@ export class AuthController {
     async verifyEmail(@Query('token') token: string) {
         return this.authService.verifyEmail(token);
     }
+
+    @Post('verify-email')
+    async verifyEmailFromApp(@Body('email') email: string, @Body('token') token: string) {
+        return this.authService.verifyEmailFromApp(email, token);
+    }
 }

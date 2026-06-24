@@ -11,6 +11,10 @@ export class UpdateProfileDto {
 
     @IsOptional()
     @IsString()
+    phone_number?: string;
+
+    @IsOptional()
+    @IsString()
     avatar_url?: string;
 
     @IsOptional()

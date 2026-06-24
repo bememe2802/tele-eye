@@ -783,7 +783,35 @@ export class BookingsService {
         });
     }
 
-    async completeAppointment(userId: number, appointmentId: number) {
+    private normalizeMedicalRecordPayload(payload: any) {
+        if (!payload || typeof payload !== 'object') {
+            return {};
+        }
+
+        const record = { ...payload };
+        if (Array.isArray(record.drug_prescription)) {
+            record.drug_prescription = {
+                items: record.drug_prescription,
+            };
+        }
+
+        return record;
+    }
+
+    private extractMedicalRecord(notes?: string | null) {
+        if (!notes) {
+            return {};
+        }
+
+        try {
+            const parsed = JSON.parse(notes);
+            return parsed?.medical_record || {};
+        } catch {
+            return { doctor_notes: notes };
+        }
+    }
+
+    async completeAppointment(userId: number, appointmentId: number, dto: any = {}) {
         const doctorId = await this.getDoctorIdForUser(userId);
         const appointment = await this.prisma.appointment.findUnique({
             where: { appointment_id: appointmentId },
@@ -801,10 +829,49 @@ export class BookingsService {
             throw new BadRequestException('Only in-progress appointments can be completed');
         }
 
-        return this.prisma.appointment.update({
+        const medicalRecord = this.normalizeMedicalRecordPayload(dto);
+        const updated = await this.prisma.appointment.update({
             where: { appointment_id: appointmentId },
-            data: { status: 'COMPLETED' },
+            data: {
+                status: 'COMPLETED',
+                notes: JSON.stringify({ medical_record: medicalRecord }),
+            },
         });
+
+        return {
+            ...updated,
+            medical_record: medicalRecord,
+        };
+    }
+
+    async getAppointmentMedicalRecord(userId: number, appointmentId: number) {
+        const appointment = await this.prisma.appointment.findUnique({
+            where: { appointment_id: appointmentId },
+        });
+
+        if (!appointment) {
+            throw new NotFoundException('Appointment not found');
+        }
+
+        let isDoctorOwner = false;
+        try {
+            const doctorId = await this.getDoctorIdForUser(userId);
+            isDoctorOwner = appointment.doctor_id === doctorId;
+        } catch {
+            isDoctorOwner = false;
+        }
+
+        if (appointment.patient_id !== userId && !isDoctorOwner) {
+            throw new ForbiddenException('You cannot view this medical record');
+        }
+
+        return {
+            appointment_id: appointment.appointment_id,
+            status: appointment.status,
+            patient_id: appointment.patient_id,
+            doctor_id: appointment.doctor_id,
+            medical_record: this.extractMedicalRecord(appointment.notes),
+        };
     }
 
     async handleSepayWebhook(authorization: string | undefined, body: any) {

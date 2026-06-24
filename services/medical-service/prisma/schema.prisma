@@ -44,3 +44,14 @@ model TestResult {
     notes        String?
     created_at   DateTime @default(now())
 }
+
+model Drug {
+    drug_id            Int      @id @default(autoincrement())
+    name               String   @unique
+    active_ingredient  String?
+    unit               String?
+    usage_instruction  String?
+    is_active          Boolean  @default(true)
+    created_at         DateTime @default(now())
+    updated_at         DateTime @updatedAt
+}

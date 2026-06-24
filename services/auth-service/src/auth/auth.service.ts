@@ -105,6 +105,39 @@ export class AuthService {
         return { message: 'Email verified successfully' };
     }
 
+    async verifyEmailFromApp(email: string, token: string) {
+        if (!email || !token) {
+            throw new BadRequestException('Email and token are required');
+        }
+
+        const user = await this.prisma.user.findUnique({
+            where: { email },
+        });
+
+        if (!user) {
+            throw new BadRequestException('User not found');
+        }
+
+        const verification = await this.prisma.verificationToken.findFirst({
+            where: { email },
+        });
+
+        if (!verification) {
+            await this.prisma.user.update({
+                where: { email },
+                data: { is_email_verified: true },
+            });
+
+            return { message: 'Email verified successfully' };
+        }
+
+        if (verification.token !== token) {
+            throw new BadRequestException('Invalid verification token');
+        }
+
+        return this.verifyEmail(token);
+    }
+
     async login(dto: LoginDto) {
         const user = await this.prisma.user.findUnique({
             where: { email: dto.email },

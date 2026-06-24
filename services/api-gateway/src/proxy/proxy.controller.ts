@@ -55,6 +55,16 @@ export class ProxyController {
         return this.proxyToService('medical', req, res);
     }
 
+    @All('drugs')
+    async proxyDrugs(@Req() req: Request, @Res() res: Response) {
+        return this.proxyToService('medical', req, res, 'drugs', 'drugs');
+    }
+
+    @All('admin/*path')
+    async proxyAdmin(@Req() req: Request, @Res() res: Response) {
+        return this.proxyToService('medical', req, res, 'admin', 'admin');
+    }
+
     @All('payment/*path')
     async proxyPayment(@Req() req: Request, @Res() res: Response) {
         return this.proxyToService('payment', req, res);
@@ -70,6 +80,7 @@ export class ProxyController {
         req: Request,
         res: Response,
         routePrefix?: string,
+        targetPrefix?: string,
     ) {
         const baseUrl = this.serviceUrls[serviceName];
         if (!baseUrl) {
@@ -80,7 +91,8 @@ export class ProxyController {
         // e.g., /api/auth/login -> /login, /api/profile/doctors -> /doctors
         const prefix = routePrefix || serviceName;
         const path = req.originalUrl.replace(`/api/${prefix}`, '');
-        const targetUrl = `${baseUrl}${path}`;
+        const targetPath = targetPrefix ? `/${targetPrefix}${path}` : path;
+        const targetUrl = `${baseUrl}${targetPath}`;
 
         try {
             // Forward authorization header

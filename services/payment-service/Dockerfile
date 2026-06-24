@@ -3,6 +3,7 @@ FROM node:20-alpine AS builder
 RUN apk add --no-cache openssl
 
 WORKDIR /app
+ENV PRISMA_ENGINES_CHECKSUM_IGNORE_MISSING=1
 
 COPY package.json ./
 RUN npm install

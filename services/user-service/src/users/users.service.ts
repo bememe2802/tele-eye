@@ -25,13 +25,20 @@ export class UsersService {
         is_available: boolean;
         created_at?: Date;
         updated_at?: Date;
-    }, fullName?: string | null) {
+    }, userProfile?: string | {
+        full_name?: string | null;
+        phone?: string | null;
+        avatar_url?: string | null;
+    } | null) {
         const specialization = doctor.specialization || undefined;
+        const fullName = typeof userProfile === 'string' ? userProfile : userProfile?.full_name;
 
         return {
             doctor_id: doctor.doctor_id,
             user_id: doctor.user_id,
             full_name: fullName || `Bác sĩ #${doctor.doctor_id}`,
+            phone_number: typeof userProfile === 'string' ? undefined : userProfile?.phone || undefined,
+            avatar_url: typeof userProfile === 'string' ? undefined : userProfile?.avatar_url || undefined,
             title: specialization,
             license_number: doctor.license_number || undefined,
             bio: doctor.bio || undefined,
@@ -44,29 +51,54 @@ export class UsersService {
         };
     }
 
-    async getProfile(userId: number) {
-        const profile = await this.prisma.userProfile.findUnique({
-            where: { user_id: userId },
-        });
-
-        if (!profile) {
-            throw new NotFoundException('User profile not found');
-        }
-
-        return profile;
+    private normalizeProfileDto(dto: UpdateProfileDto & { phone_number?: string }) {
+        const { phone_number, ...profileDto } = dto;
+        return {
+            ...profileDto,
+            phone: profileDto.phone || phone_number,
+        };
     }
 
-    async updateProfile(userId: number, dto: UpdateProfileDto) {
+    private toUserProfileResponse(profile: {
+        user_id: number;
+        full_name: string | null;
+        phone: string | null;
+        avatar_url: string | null;
+        date_of_birth: Date | null;
+        gender: string | null;
+        address: string | null;
+        emergency_contact: string | null;
+        created_at: Date;
+        updated_at: Date;
+    }) {
+        return {
+            ...profile,
+            phone_number: profile.phone,
+        };
+    }
+
+    async getProfile(userId: number) {
         const profile = await this.prisma.userProfile.upsert({
             where: { user_id: userId },
-            update: dto,
+            update: {},
+            create: { user_id: userId },
+        });
+
+        return this.toUserProfileResponse(profile);
+    }
+
+    async updateProfile(userId: number, dto: UpdateProfileDto & { phone_number?: string }) {
+        const profileDto = this.normalizeProfileDto(dto);
+        const profile = await this.prisma.userProfile.upsert({
+            where: { user_id: userId },
+            update: profileDto,
             create: {
                 user_id: userId,
-                ...dto,
+                ...profileDto,
             },
         });
 
-        return profile;
+        return this.toUserProfileResponse(profile);
     }
 
     async createDoctor(dto: CreateDoctorDto) {
@@ -145,6 +177,62 @@ export class UsersService {
         });
 
         return this.toDoctorResponse(profile, userProfile?.full_name);
+    }
+
+    async updateDoctorProfileByDoctorId(doctorId: number, dto: any) {
+        const doctor = await this.prisma.doctorProfile.findUnique({
+            where: { doctor_id: doctorId },
+        });
+
+        if (!doctor) {
+            throw new NotFoundException('Doctor profile not found');
+        }
+
+        return this.updateDoctorProfileByUserId(doctor.user_id, dto);
+    }
+
+    async updateDoctorProfileByUserId(userId: number, dto: any) {
+        const doctor = await this.prisma.doctorProfile.findUnique({
+            where: { user_id: userId },
+        });
+
+        if (!doctor) {
+            throw new NotFoundException('Doctor profile not found');
+        }
+
+        const specialization =
+            dto.title ??
+            dto.specialization ??
+            (Array.isArray(dto.specializations) ? dto.specializations[0] : undefined);
+
+        const doctorData: any = {};
+        if (specialization !== undefined) doctorData.specialization = specialization;
+        if (dto.license_number !== undefined) doctorData.license_number = dto.license_number;
+        if (dto.experience_years !== undefined) doctorData.years_of_exp = Number(dto.experience_years) || 0;
+        if (dto.years_of_exp !== undefined) doctorData.years_of_exp = Number(dto.years_of_exp) || 0;
+        if (dto.consultation_fee !== undefined) doctorData.consultation_fee = Number(dto.consultation_fee) || 0;
+        if (dto.bio !== undefined) doctorData.bio = dto.bio;
+        if (dto.is_available !== undefined) doctorData.is_available = Boolean(dto.is_available);
+
+        const userProfileData: any = {};
+        if (dto.full_name !== undefined) userProfileData.full_name = dto.full_name;
+        if (dto.phone_number !== undefined) userProfileData.phone = dto.phone_number;
+        if (dto.phone !== undefined) userProfileData.phone = dto.phone;
+        if (dto.avatar_url !== undefined) userProfileData.avatar_url = dto.avatar_url;
+
+        const [updatedDoctor, userProfile] = await this.prisma.$transaction([
+            this.prisma.doctorProfile.update({
+                where: { user_id: userId },
+                data: doctorData,
+            }),
+            this.prisma.userProfile.upsert({
+                where: { user_id: userId },
+                update: userProfileData,
+                create: { user_id: userId, ...userProfileData },
+            }),
+        ]);
+
+        return this.toDoctorResponse(updatedDoctor, userProfile);
     }
 
     async listDoctors() {
