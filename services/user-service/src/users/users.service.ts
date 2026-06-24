@@ -131,6 +131,22 @@ export class UsersService {
         return this.toDoctorResponse(profile, userProfile?.full_name);
     }
 
+    async getDoctorProfileByUserId(userId: number) {
+        const profile = await this.prisma.doctorProfile.findUnique({
+            where: { user_id: userId },
+        });
+
+        if (!profile) {
+            throw new NotFoundException('Doctor profile not found');
+        }
+
+        const userProfile = await this.prisma.userProfile.findUnique({
+            where: { user_id: profile.user_id },
+        });
+
+        return this.toDoctorResponse(profile, userProfile?.full_name);
+    }
+
     async listDoctors() {
         const doctors = await this.prisma.doctorProfile.findMany({
             where: { is_available: true },

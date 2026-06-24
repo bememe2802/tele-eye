@@ -1,5 +1,7 @@
 import { Injectable, NotFoundException, BadRequestException, ForbiddenException, UnauthorizedException } from '@nestjs/common';
 import { ConfigService } from '@nestjs/config';
+import { HttpService } from '@nestjs/axios';
+import { firstValueFrom } from 'rxjs';
 import { PrismaService } from '../prisma/prisma.service';
 import { CreateAppointmentDto } from './dto/create-appointment.dto';
 import { UpdateAppointmentDto } from './dto/update-appointment.dto';
@@ -99,24 +101,79 @@ interface SepayTransactionListResponse {
     transactions?: SepayTransactionItem[];
 }
 
+interface DoctorProfileResponse {
+    doctor_id: number;
+    user_id: number;
+    full_name?: string;
+    title?: string;
+    specialization?: string;
+    consultation_fee?: number;
+    specializations?: string[];
+}
+
 @Injectable()
 export class BookingsService {
     constructor(
         private readonly prisma: PrismaService,
         private readonly configService: ConfigService,
+        private readonly httpService: HttpService,
     ) { }
 
-    private async getDoctorIdForUser(userId: number) {
-        const doctor = await this.prisma.doctorProfile.findUnique({
-            where: { user_id: userId },
-            select: { doctor_id: true },
-        });
+    private getUserServiceUrl() {
+        return this.configService.get<string>('USER_SERVICE_URL', 'http://user-service:8082');
+    }
 
-        if (!doctor) {
+    private async fetchDoctorById(doctorId: number) {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.get<DoctorProfileResponse>(
+                    `${this.getUserServiceUrl()}/doctors/${doctorId}`,
+                ),
+            );
+
+            return response.data;
+        } catch {
+            throw new NotFoundException('Doctor profile not found');
+        }
+    }
+
+    private async fetchDoctorByUserId(userId: number) {
+        try {
+            const response = await firstValueFrom(
+                this.httpService.get<DoctorProfileResponse>(
+                    `${this.getUserServiceUrl()}/doctors/by-user/${userId}`,
+                ),
+            );
+
+            return response.data;
+        } catch {
             throw new BadRequestException('Doctor profile not found');
         }
+    }
 
+    private async fetchDoctorsByIds(doctorIds: number[]) {
+        const uniqueDoctorIds = Array.from(new Set(doctorIds));
+        const doctors = await Promise.all(
+            uniqueDoctorIds.map(async (doctorId) => {
+                try {
+                    return await this.fetchDoctorById(doctorId);
+                } catch {
+                    return null;
+                }
+            }),
+        );
+
+        return doctors.filter((doctor): doctor is DoctorProfileResponse => Boolean(doctor));
+    }
+
+    private async getDoctorIdForUser(userId: number) {
+        const doctor = await this.fetchDoctorByUserId(userId);
         return doctor.doctor_id;
+    }
+
+    private async getAppointmentAmount(doctorId: number) {
+        const doctor = await this.fetchDoctorById(doctorId);
+        return Math.round(Number(doctor.consultation_fee || 0));
     }
 
     private extractAppointmentId(content?: string | null) {
@@ -148,15 +205,6 @@ export class BookingsService {
             this.configService.get<string>('SEPAY_WEBHOOK_TOKEN')?.trim() ||
             null
         );
-    }
-
-    private async getAppointmentAmount(doctorId: number) {
-        const doctor = await this.prisma.doctorProfile.findUnique({
-            where: { doctor_id: doctorId },
-            select: { consultation_fee: true },
-        });
-
-        return Math.round(Number(doctor?.consultation_fee || 0));
     }
 
     private async confirmAppointmentPayment(
@@ -444,9 +492,7 @@ export class BookingsService {
 
         const doctorIds = Array.from(new Set(schedules.map((schedule) => schedule.doctor_id)));
         const [doctors, appointments] = await Promise.all([
-            this.prisma.doctorProfile.findMany({
-                where: { doctor_id: { in: doctorIds } },
-            }),
+            this.fetchDoctorsByIds(doctorIds),
             this.prisma.appointment.findMany({
                 where: {
                     doctor_id: { in: doctorIds },
@@ -456,15 +502,8 @@ export class BookingsService {
             }),
         ]);
 
-        const userProfiles = await this.prisma.userProfile.findMany({
-            where: {
-                user_id: {
-                    in: doctors.map((doctor) => doctor.user_id),
-                },
-            },
-        });
         const doctorsById = new Map(doctors.map((doctor) => [doctor.doctor_id, doctor]));
-        const namesByUserId = new Map(userProfiles.map((profile) => [profile.user_id, profile.full_name]));
+        const namesByUserId = new Map(doctors.map((doctor) => [doctor.user_id, doctor.full_name]));
         const bookedKeys = new Set(
             appointments.map((appointment) =>
                 `${appointment.doctor_id}|${appointment.start_time}`,
@@ -489,21 +528,22 @@ export class BookingsService {
                 return [];
             }
 
-            const fullName = namesByUserId.get(doctor.user_id) || `Bác sĩ #${doctor.doctor_id}`;
+            const fullName = namesByUserId.get(doctor.user_id) || `Doctor #${doctor.doctor_id}`;
+            const specialty = doctor.title || doctor.specialization;
 
             return [{
                 slot_id: encodeSlotId(schedule.doctor_id, requestedDateIso, systemSlot.slot_template_id),
                 date_slot: requestedDateIso,
                 start_time: schedule.start_time,
                 end_time: schedule.end_time,
-                price: doctor.consultation_fee,
+                price: doctor.consultation_fee || 0,
                 is_locked: false,
                 doctor: {
                     doctor_id: doctor.doctor_id,
                     full_name: fullName,
-                    title: doctor.specialization,
+                    title: specialty,
                     avatar_url: undefined,
-                    specialties: doctor.specialization ? [doctor.specialization] : [],
+                    specialties: doctor.specializations?.length ? doctor.specializations : (specialty ? [specialty] : []),
                 },
             }];
         });
@@ -656,24 +696,17 @@ export class BookingsService {
         }
 
         const doctorIds = Array.from(new Set(appointments.map((appointment) => appointment.doctor_id)));
-        const patientUserIds = Array.from(new Set(appointments.map((appointment) => appointment.patient_id)));
-
-        const doctors = await this.prisma.doctorProfile.findMany({
-            where: { doctor_id: { in: doctorIds } },
-        });
-        const doctorUserIds = doctors.map((doctor) => doctor.user_id);
-        const userProfiles = await this.prisma.userProfile.findMany({
-            where: { user_id: { in: [...doctorUserIds, ...patientUserIds] } },
-        });
+        const doctors = await this.fetchDoctorsByIds(doctorIds);
 
         const doctorsById = new Map(doctors.map((doctor) => [doctor.doctor_id, doctor]));
-        const namesByUserId = new Map(userProfiles.map((profile) => [profile.user_id, profile.full_name]));
+        const namesByUserId = new Map(doctors.map((doctor) => [doctor.user_id, doctor.full_name]));
 
         return appointments.map((appointment) => {
             const doctor = doctorsById.get(appointment.doctor_id);
             const doctorName = doctor ? namesByUserId.get(doctor.user_id) : undefined;
             const patientName = namesByUserId.get(appointment.patient_id);
             const isPaid = paidStatuses.has(appointment.status);
+            const specialty = doctor?.title || doctor?.specialization;
 
             return {
                 ...appointment,
@@ -692,10 +725,10 @@ export class BookingsService {
                     doctor_id: doctor.doctor_id,
                     user_id: doctor.user_id,
                     full_name: doctorName || `Bác sĩ #${doctor.doctor_id}`,
-                    title: doctor.specialization,
-                    consultation_fee: doctor.consultation_fee,
+                    title: specialty,
+                    consultation_fee: doctor.consultation_fee || 0,
                     is_verified: true,
-                    specializations: doctor.specialization ? [doctor.specialization] : [],
+                    specializations: doctor.specializations?.length ? doctor.specializations : (specialty ? [specialty] : []),
                 } : undefined,
                 medical_record: appointment.reason ? { chief_complaint: appointment.reason } : undefined,
             };

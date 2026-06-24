@@ -31,6 +31,11 @@ export class UsersController {
         return this.usersService.listDoctors();
     }
 
+    @Get('doctors/by-user/:userId')
+    async getDoctorProfileByUserId(@Param('userId') userId: string) {
+        return this.usersService.getDoctorProfileByUserId(Number(userId));
+    }
+
     @Get('doctors/:id')
     async getDoctorProfile(@Param('id') id: string) {
         return this.usersService.getDoctorProfile(Number(id));
